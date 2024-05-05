@@ -7,12 +7,16 @@ output: html_notebook
 ```{r}
 library(ggplot2)
 library(tidyverse)
+library(glue)
 
 dati <- read.csv("./healthcare-dataset-stroke-data.csv")
 ```
 ```{r}
 print("Prime righe del dataset:")
-print(head(dati))
+print(head(dati,5))
+```
+```{r}
+print(glue("Are the patient all different: {dim(dati)[1] == length(unique(dati$id))}"))
 ```
 ```{r}
 print("Riepilogo del dataset:")
@@ -49,12 +53,18 @@ dati_puliti <- dati[!apply(dati == "N/A", 1, any), ]
 print(paste("Righe dopo la pulizia:", nrow(dati_puliti)))
 ```
 ```{r}
+
+```
+```{r}
 dati_puliti$bmi <- as.numeric(as.character(dati_puliti$bmi))
+```
+```{r}
+colnames(dati_puliti)
 ```
 ```{r}
 pdf("Istogrammi_per_colonna.pdf", width = 11, height = 8.5)
 
-for (colonna in names(dati_puliti)) {
+for (colonna in colnames(dati_puliti)) {
   # Controllare se la colonna è numerica
   if (is.numeric(dati_puliti[[colonna]])) {
 

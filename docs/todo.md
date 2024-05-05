@@ -34,14 +34,12 @@
 
 ## Report
 
-
 ## TODO Matteo
 
-* [x] Cambiare da code a markdown
-* [x] rimuovere righe nan value
-* [ ] controllare pk bmi non viene plottato
-
+* [X]  Cambiare da code a markdown
+* [X]  rimuovere righe nan value
+* [ ]  controllare pk bmi non viene plottato
 
 ## TODO Cristian
-* [ ] Pensare domande
-* [ ] Guardare progetto Miro
+
+* [X]  Pensare domande
