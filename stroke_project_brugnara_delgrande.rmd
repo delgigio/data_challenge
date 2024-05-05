@@ -1,0 +1,69 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+```{r}
+print("Prime righe del dataset:")
+print(head(dati))
+```
+```{r}
+print("Riepilogo del dataset:")
+print(summary(dati))
+```
+```{r}
+print("Nome delle colonne disponibili:")
+print(colnames(dati))
+```
+```{r}
+# Missing values
+missing_values <- sum(is.na(dati))
+print(paste("Numero totale di missing values nel dataset:", missing_values))
+```
+```{r}
+print("Statistiche descrittive per le variabili numeriche:")
+print(summary(select(dati, where(is.numeric))))
+```
+```{r}
+print("Frequenze per le variabili categoriche:")
+print(table(dati$gender)) # Cambia 'gender' con il nome della colonna appropriata
+```
+```{r}
+pdf("Istogrammi_per_colonna.pdf", width = 11, height = 8.5)
+
+for (colonna in names(dati)) {
+  # Controllare se la colonna è numerica
+  if (is.numeric(dati[[colonna]])) {
+
+    p <- ggplot(dati, aes(x = !!sym(colonna))) +
+      geom_histogram(bins = 30, fill = "blue", color = "black") +
+      labs(title = paste("Istogramma di", colonna), x = colonna, y = "Frequenza") +
+      theme_minimal()
+    print(p)
+  }
+}
+dev.off()
+
+pdf("Boxplots_per_colonna.pdf", width = 11, height = 8.5)
+
+# Generare un box plot per ogni colonna numerica
+for (colonna in names(dati)) {
+
+  if (is.numeric(dati[[colonna]])) {
+
+    p <- ggplot(dati, aes(x = factor(0), y = !!sym(colonna))) +
+      geom_boxplot() +
+      labs(title = paste("Box plot di", colonna), y = colonna, x = "") +
+      theme_minimal()
+    print(p)
+  }
+}
+dev.off()
+```
+
+
