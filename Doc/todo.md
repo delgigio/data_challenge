@@ -37,8 +37,8 @@
 
 ## TODO Matteo
 
-* [ ] Cambiare da code a markdown
-* [ ] rimuovere righe nan value
+* [x] Cambiare da code a markdown
+* [x] rimuovere righe nan value
 * [ ] controllare pk bmi non viene plottato
 
 
