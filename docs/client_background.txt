@@ -1,0 +1,36 @@
+POSSIBLE QUESTIONS 
+
+We are a medical research institute which collaborates with many hospitals over the territory of Switzerland.
+One of the hospitals recently provided us a dataset about patients with the task of analyzing the typical profiles that are more related to brain strokes. As the data contained only patients that had a stroke we asked the hospital to give us data about people who did in fact not have a stroke. This way we had a lot more data to work on and comprare to the previously-provided samples.
+After discussing between us we found some other interesting analysis to be done on the dataset and we figured out it would be useful to ask data experts to help us with the analysis. On top of that, using machine learning would help us discover hidden patterns and evaluate some of the tools in the medical sectors.
+Therefore we decided to come to you with a series of questions and possible analysis topics.
+
+
+###     POSSIBLE QUESTIONS     ###
+
+
+MODELS
+- Is it possible to (circa) predict these strokes with ML / statistical methods? (Binary classification) 
+Even if the answer is yes, are very complex methods needed or can it be done with something more explainable?
+
+- Can we potentially reduce the dimensionality of our data for our predictions? (LDA/QDA)
+ 
+- Could we classify patients into groups of risk? (Multi-class classification; Issue: Hand-crafted groups, we aren't experts!!)
+
+- Can we predict <numeric value> based on x features? (Regression) 
+(Try various models, LR, Lasso/Ridge..., various features compare using plots)
+
+
+
+HYPOTHESIS TESTING & ANOVA
+
+- (If we notice that one between age, bmi, glucose is relevant to strokes) Is there a significant difference in the average <value> between patients who have had a stroke and those who haven’t?
+
+- Does the average BMI differ significantly between different work types or residence types?
+
+
+CONFIDENCE INTERVALS
+
+- Is there a specific range of age doctors should be more careful about when dealing with strokes?
+
+
