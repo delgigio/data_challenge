@@ -9,8 +9,9 @@ library(ggplot2)
 library(tidyverse)
 library(glue)
 
-dati <- read.csv("./healthcare-dataset-stroke-data.csv")
+dati <- read_csv("./healthcare-dataset-stroke-data.csv")
 ```
+
 ```{r}
 print("Prime righe del dataset:")
 print(head(dati,5))
@@ -34,9 +35,7 @@ na_count <- sapply(dati, function(x) sum(x == "N/A"))
 print("Conteggio di 'N/A' per colonna:")
 print(na_count)
 ```
-```{r}
-str(dati_puliti)
-```
+
 ```{r}
 print("Statistiche descrittive per le variabili numeriche:")
 print(summary(select(dati, where(is.numeric))))
@@ -94,8 +93,161 @@ for (colonna in c('age','bmi','avg_glucose_level')) {
 }
 dev.off()
 ```
+
 ```{r}
+df <- dati_puliti
+df
+```
+
+CLASSIFICATION OF STROKES
+```{r}
+install.packages('tidymodels')
+install.packages('caret')  # stratified split
+library(tidymodels)
+```
+
+
+```{r}
+df <- select(df, -1) # removing the id
+```
+
+
+```{r}
+df$stroke <- as.factor(df$stroke)
+
+
+library(caret)
+train.index <- createDataPartition(df$stroke, p = 0.75, list = FALSE)
+df_train <- df[ train.index,]
+df_test  <- df[-train.index,]
+
+train_2.index <- createDataPartition(df_train$stroke, p = 0.75, list = FALSE)
+df_val  <- df_train[-train_2.index,]
+df_train <- df_train[ train_2.index,]
+
+print(glue("Train set shape: ({dim(df_train)[[1]]}, {dim(df_train)[[2]]})"))
+print(glue("Validation set shape: ({dim(df_val)[[1]]}, {dim(df_val)[[2]]})"))
+print(glue("Test set shape: ({dim(df_test)[[1]]}, {dim(df_test)[[2]]})"))
+
 
 ```
+
+
+
+```{r}
+# LOGISTIC REG
+
+base_recipe <- recipe(stroke ~ ., data = df_train)
+
+logreg <- logistic_reg() %>% set_engine('glm')
+
+ stroke_recipe <- base_recipe %>% step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors())
+ 
+ logreg_workflow <- workflow() %>% add_model(logreg) %>% add_recipe(stroke_recipe)
+ 
+logreg_fit_workflow <- logreg_workflow %>% fit(df_train)  
+
+logreg_fit_workflow
+```
+```{r}
+logreg_fit_workflow %>% extract_fit_engine() %>% summary()
+```
+
+```{r}
+logreg_trainPred <- logreg_fit_workflow %>% augment(df_train)
+logreg_trainPred %>% head(1)
+```
+
+```{r}
+yardstick::metrics(logreg_trainPred, truth=stroke, estimate=.pred_class)
+```
+
+```{r}
+logreg_trainPred %>% group_by(stroke) %>% 
+  summarise(n=n()) %>% mutate(freq=n/sum(n))
+```
+
+
+```{r}
+logreg_cm <- logreg_trainPred %>% 
+  conf_mat(truth=stroke,estimate=.pred_class)
+
+logreg_cm
+```
+
+```{r}
+yardstick::recall(logreg_trainPred, truth=stroke,estimate=.pred_class,event_level='second')
+```
+
+```{r}
+roc_curve(logreg_trainPred, stroke,.pred_1,event_level = 'second') %>% autoplot()
+```
+RF
+
+```{r}
+rand_forest_spec <- rand_forest(mtry = 3) %>%  
+  set_engine('randomForest') %>% 
+  set_mode('classification')
+```
+
+```{r}
+install.packages('randomForest')
+
+
+rf <- rand_forest(mtry = 3) %>%  
+  set_engine('randomForest') %>% 
+  set_mode('classification')
+
+
+ rf_workflow <- workflow() %>% add_model(rf) %>% add_recipe(stroke_recipe)
+ 
+ 
+rf_fit_workflow <- rf_workflow %>% fit(df_train)  
+
+
+logreg_fit_workflow
+```
+```{r}
+rf_trainPred <- rf_fit_workflow %>% augment(df_train)
+rf_trainPred %>% head(300)
+```
+
+```{r}
+yardstick::metrics(rf_trainPred, truth=stroke, estimate=.pred_class)
+
+rf_cm <- rf_trainPred %>% 
+  conf_mat(truth=stroke,estimate=.pred_class)
+
+rf_cm
+
+yardstick::recall(rf_trainPred, truth=stroke,estimate=.pred_class,event_level='second')
+```
+```{r}
+roc_curve(rf_trainPred, stroke,.pred_1,event_level = 'second') %>% autoplot()
+```
+
+
+
+```{r}
+threshold <- 0.2
+pred_class <- ifelse(rf_trainPred$.pred_1 > threshold, 1, 0)
+
+
+rf_trainPred$.pred_class <- as.factor(as.numeric(pred_class))
+```
+
+```{r}
+rf_cm <- rf_trainPred %>% 
+  conf_mat(truth=stroke,estimate=.pred_class)
+
+print(rf_cm)
+
+yardstick::recall(rf_trainPred, truth=stroke,estimate=.pred_class,event_level='second')
+```
+
+
+
+
 
 

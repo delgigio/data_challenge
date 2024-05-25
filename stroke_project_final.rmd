@@ -1,0 +1,145 @@
+---
+title: "Stroke analysis and prediction"
+output: html_notebook
+---
+
+# Title
+### Background
+We are a medical research institute which collaborates with many hospitals over the territory of Switzerland.
+One of the hospitals recently provided us a dataset about patients with the task of analyzing the typical profiles that are more related to brain strokes. As the data contained only patients that had a stroke we asked the hospital to give us data about people who did in fact not have a stroke. This way we had a lot more data to work on and comprare to the previously-provided samples.
+After discussing between us we found some other interesting analysis to be done on the dataset and we figured out it would be useful to ask data experts to help us with the analysis. On top of that, using machine learning would help us discover hidden patterns and evaluate some of the tools in the medical sectors.
+Therefore we decided to come to you with a series of questions and possible analysis topics.
+
+
+
+## Preparing the data
+After loading the dataset using <check slides>, the first step is to check whether it's tidy.
+
+```{r}
+# loading useful libraries
+
+library(tidyverse)
+library(glue)  # f-strings
+library(tidymodels)
+library(caret)  # stratified split
+```
+
+```{r}
+data <- read_csv("./healthcare-dataset-stroke-data.csv", show_col_types =FALSE)
+dim(data); colnames(data)
+```
+We have over 5100 patients and 12 columns, with 'stroke' being the binary target of the dataset. 
+From the feature names and the first few lines we can confirm that each column represents a characteristic of the patient and no cell contains more than one values that could be split. 
+
+```{r}
+head(data, 5)
+```
+The last check needed for a tidy dataset is that each row is a different observation, in our case a patient.
+To do so we make sure that all of the people are different by counting their IDs. We can see that it's indeed the case.
+
+```{r}
+length(unique(data$id)); dim(data)[[1]]
+```
+From this point on, ID is not relevant anymore as completely unique values have no predictive power and aren't useful for any analysis, we will remove them.
+
+```{r}
+data <- select(data, -id)
+```
+
+
+Often data collection may produce mistakes or incomplete observations. Let's check the missing values of our dataset for each column.
+
+```{r}
+sapply(data, function(x) sum(x == "N/A"))
+```
+The only column that contains NaN values is 'bmi' and we can notice that we don't have any height or weight columns, thus it can't be extracted. There are many ways to impute this values.
+For now we eliminate the rows with missing bmi.
+
+```{r}
+dati_puliti <- dati[!apply(dati == "N/A", 1, any), ]
+
+# doesn't work
+```
+
+Before starting to visualize and analyze we should divide the dataset into train + validation and test sets.
+The test set is supposed to simulate fully unknown data and won't be used until the end of the process. The train set is used to train models, and the validation set is used to evaluate models inside of the workflow and to optimize them without leaking the test data.
+We believe visualizing should also be done only on the train set as we might notice some patterns that we weren't supposed to see by using the test set.
+
+We use a stratified split to keep the ration of patients that had and didn't have a stroke in all datasets the same.
+
+```{r}
+train.index <- createDataPartition(data$stroke, p = 0.75, list = FALSE)
+tmp_train <- data[ train.index,]
+tb_test  <- data[-train.index,]
+
+train_2.index <- createDataPartition(tmp_train$stroke, p = 0.75, list = FALSE)
+tb_val  <- tmp_train[-train_2.index,]
+tb_train <- tmp_train[ train_2.index,]
+
+print(glue("Train set shape: ({dim(df_train)[[1]]}, {dim(df_train)[[2]]})"))
+print(glue("Validation set shape: ({dim(df_val)[[1]]}, {dim(df_val)[[2]]})"))
+print(glue("Test set shape: ({dim(df_test)[[1]]}, {dim(df_test)[[2]]})"))
+```
+
+We can start doing some data exploration.
+
+```{r}
+print(summary(select(tb_train, where(is.numeric))))
+```
+```{r}
+numeric_columns <- c('age','avg_glucose_level') # ,'bmi')
+
+for (col in numeric_columns) {
+  p <- ggplot(tb_train, aes(x = !!sym(col))) +
+    geom_histogram(bins = 30, fill = "blue", color = "black") +
+    labs(title = glue("PDF of '{col}'"), x = col, y = "Frequency") +
+    theme_minimal()
+  print(p)
+}
+```
+```{r}
+for (col in numeric_columns) {
+  p <- ggplot(tb_train, aes(x = factor(0), y = !!sym(col))) +
+    geom_boxplot() +
+    labs(title=glue('boxplot of {col}'),y = col, x = "") +
+    theme_minimal()
+  print(p)
+}
+```
+
+```{r}
+for (col in numeric_columns) {
+  p <- ggplot(tb_train, aes(x = factor(stroke), y = !!sym(col), fill = factor(stroke))) +
+    geom_boxplot() +
+    labs(title = glue("Box plot of {col} stratified by stroke"), y = col, x = "Stroke (0 = False, 1 = True)") +
+    theme_minimal() +
+    theme(legend.position = "none")
+  print(p)
+}
+```
+
+
+```{r}
+ggplot(tb_train, aes(x = age, y = avg_glucose_level)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = "age vs avg_glucose_level", x = "age", y = "avg_glucose_level") +
+  theme_minimal()
+```
+
+
+
+
+
+```{r}
+print(table(tb_train$gender))
+cat("\n")
+print(table(tb_train$work_type))
+cat("\n")
+print(table(tb_train$smoking_status))
+cat("\n")
+print(table(tb_train$Residence_type))
+```
+
+
+

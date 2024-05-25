@@ -3,8 +3,8 @@
 ## Transform
 
 * [ ]  split
-* [ ]  handle NaN values
-* [ ]  encode (probably)
+* [X]  handle NaN values
+* [X]  encode (probably)
 
 ## Initial visualization
 

@@ -1,5 +1,3 @@
-POSSIBLE QUESTIONS 
-
 We are a medical research institute which collaborates with many hospitals over the territory of Switzerland.
 One of the hospitals recently provided us a dataset about patients with the task of analyzing the typical profiles that are more related to brain strokes. As the data contained only patients that had a stroke we asked the hospital to give us data about people who did in fact not have a stroke. This way we had a lot more data to work on and comprare to the previously-provided samples.
 After discussing between us we found some other interesting analysis to be done on the dataset and we figured out it would be useful to ask data experts to help us with the analysis. On top of that, using machine learning would help us discover hidden patterns and evaluate some of the tools in the medical sectors.
@@ -27,6 +25,8 @@ HYPOTHESIS TESTING & ANOVA
 - (If we notice that one between age, bmi, glucose is relevant to strokes) Is there a significant difference in the average <value> between patients who have had a stroke and those who haven’t?
 
 - Does the average BMI differ significantly between different work types or residence types?
+
+- Check if the general population mean glucose is similar to ours, so that we see if our data is a good sample.
 
 
 CONFIDENCE INTERVALS
