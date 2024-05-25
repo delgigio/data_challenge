@@ -25,11 +25,11 @@ library(caret)  # stratified split
 ```
 
 ```{r}
-data <- read_csv("./healthcare-dataset-stroke-data.csv", show_col_types =FALSE)
+data <- read_csv("./data_challenge/healthcare-dataset-stroke-data.csv", show_col_types =FALSE)
 dim(data); colnames(data)
 ```
-We have over 5100 patients and 12 columns, with 'stroke' being the binary target of the dataset. 
-From the feature names and the first few lines we can confirm that each column represents a characteristic of the patient and no cell contains more than one values that could be split. 
+We have over 5100 patients and 12 columns, with 'stroke' being the binary target of the dataset.
+From the feature names and the first few lines we can confirm that each column represents a characteristic of the patient and no cell contains more than one values that could be split.
 
 ```{r}
 head(data, 5)
@@ -56,9 +56,11 @@ The only column that contains NaN values is 'bmi' and we can notice that we don'
 For now we eliminate the rows with missing bmi.
 
 ```{r}
-dati_puliti <- dati[!apply(dati == "N/A", 1, any), ]
+data <- data[!apply(data == "N/A", 1, any), ]
 
-# doesn't work
+sapply(data, function(x) sum(x == "N/A"))
+
+data$bmi <- as.numeric(data$bmi)
 ```
 
 Before starting to visualize and analyze we should divide the dataset into train + validation and test sets.
@@ -68,6 +70,9 @@ We believe visualizing should also be done only on the train set as we might not
 We use a stratified split to keep the ration of patients that had and didn't have a stroke in all datasets the same.
 
 ```{r}
+
+data$stroke <- as.factor(data$stroke)
+
 train.index <- createDataPartition(data$stroke, p = 0.75, list = FALSE)
 tmp_train <- data[ train.index,]
 tb_test  <- data[-train.index,]
@@ -76,9 +81,9 @@ train_2.index <- createDataPartition(tmp_train$stroke, p = 0.75, list = FALSE)
 tb_val  <- tmp_train[-train_2.index,]
 tb_train <- tmp_train[ train_2.index,]
 
-print(glue("Train set shape: ({dim(df_train)[[1]]}, {dim(df_train)[[2]]})"))
-print(glue("Validation set shape: ({dim(df_val)[[1]]}, {dim(df_val)[[2]]})"))
-print(glue("Test set shape: ({dim(df_test)[[1]]}, {dim(df_test)[[2]]})"))
+print(glue("Train set shape: ({dim(tb_train)[[1]]}, {dim(tb_train)[[2]]})"))
+print(glue("Validation set shape: ({dim(tb_val)[[1]]}, {dim(tb_val)[[2]]})"))
+print(glue("Test set shape: ({dim(tb_test)[[1]]}, {dim(tb_test)[[2]]})"))
 ```
 
 We can start doing some data exploration.
@@ -87,7 +92,7 @@ We can start doing some data exploration.
 print(summary(select(tb_train, where(is.numeric))))
 ```
 ```{r}
-numeric_columns <- c('age','avg_glucose_level') # ,'bmi')
+numeric_columns <- c('age','avg_glucose_level','bmi')
 
 for (col in numeric_columns) {
   p <- ggplot(tb_train, aes(x = !!sym(col))) +
@@ -130,7 +135,6 @@ ggplot(tb_train, aes(x = age, y = avg_glucose_level)) +
 
 
 
-
 ```{r}
 print(table(tb_train$gender))
 cat("\n")
@@ -142,4 +146,336 @@ print(table(tb_train$Residence_type))
 ```
 
 
+```{r}
+# Creazione del grafico a torta per 'work_type'
+work_counts <- tb_train %>%
+  group_by(work_type) %>%
+  summarise(count = n())
 
+ggplot(work_counts, aes(x = "", y = count, fill = work_type)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  labs(title = "Distribution of Work Type", fill = "Work Type")
+```
+
+
+```{r}
+stroke_residence_gender_counts <- tb_train %>%
+  group_by(stroke, Residence_type, gender) %>%
+  summarise(count = n()) %>%
+  ungroup()
+
+ggplot(stroke_residence_gender_counts, aes(x = Residence_type, y = count, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~stroke) +
+  labs(title = "Distribution of Stroke by Residence Type and Gender",
+       x = "Residence Type",
+       y = "Count",
+       fill = "Gender") +
+  theme_minimal()
+```
+
+
+```{r}
+ggplot(data, aes(x = factor(stroke))) +
+  geom_bar(fill = c("blue", "orange")) +
+  labs(title = "Distribution of Stroke", x = "Stroke", y = "Count") +
+  theme_minimal()
+
+# Bar chart for 'residence_type'
+ggplot(data, aes(x = factor(Residence_type))) +
+  geom_bar(fill = c("green", "red")) +
+  labs(title = "Distribution of Residence Type", x = "Residence Type", y = "Count") +
+  theme_minimal()
+
+# Bar chart for 'gender'
+ggplot(data, aes(x = factor(gender))) +
+  geom_bar(fill = c("purple", "yellow", "green")) +
+  labs(title = "Distribution of Gender", x = "Gender", y = "Count") +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+install.packages("themis")
+
+library(themis)
+base_recipe <- recipe(stroke ~ ., data = tb_train)
+
+logreg <- logistic_reg() %>% set_engine('glm')
+
+ stroke_recipe <- base_recipe %>% step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors())
+
+stroke_recipe <- stroke_recipe %>%
+  step_downsample(stroke)
+
+ logreg_workflow <- workflow() %>% add_model(logreg) %>% add_recipe(stroke_recipe)
+
+logreg_fit_workflow <- logreg_workflow %>% fit(tb_train)
+
+logreg_fit_workflow
+```
+
+
+```{r}
+logreg_valPred <- logreg_fit_workflow %>% augment(tb_val)
+logreg_valPred %>% head(1)
+```
+
+```{r}
+yardstick::metrics(logreg_valPred, truth=stroke, estimate=.pred_class)
+```
+
+
+```{r}
+logreg_valPred %>% group_by(stroke) %>%
+  summarise(n=n()) %>% mutate(freq=n/sum(n))
+```
+
+
+```{r}
+logreg_cm <- logreg_valPred %>%
+  conf_mat(truth=stroke,estimate=.pred_class)
+
+logreg_cm
+```
+
+
+```{r}
+yardstick::recall(logreg_valPred, truth=stroke,estimate=.pred_class,event_level='second')
+roc_curve(logreg_valPred, stroke,.pred_1,event_level = 'second') %>% autoplot()
+```
+
+
+```{r}
+logreg_fit_workflow %>% extract_fit_engine() %>% summary()
+```
+
+
+```{r}
+rand_forest_spec <- rand_forest(mtry = 3) %>%
+  set_engine('randomForest') %>%
+  set_mode('classification')
+```
+
+```{r}
+install.packages('randomForest')
+
+
+rf <- rand_forest(mtry = 3) %>%
+  set_engine('randomForest') %>%
+  set_mode('classification')
+
+
+ rf_workflow <- workflow() %>% add_model(rf) %>% add_recipe(stroke_recipe)
+
+
+rf_fit_workflow <- rf_workflow %>% fit(tb_train)
+
+
+logreg_fit_workflow
+```
+
+
+```{r}
+rf_valPred <- rf_fit_workflow %>% augment(tb_val)
+rf_valPred %>% head(300)
+```
+```{r}
+
+```
+
+
+```{r}
+yardstick::metrics(rf_valPred, truth=stroke, estimate=.pred_class)
+
+rf_cm <- rf_valPred %>%
+  conf_mat(truth=stroke,estimate=.pred_class)
+
+rf_cm
+
+yardstick::recall(rf_valPred, truth=stroke,estimate=.pred_class,event_level='second')
+```
+
+
+```{r}
+roc_curve(rf_valPred, stroke,.pred_1,event_level = 'second') %>% autoplot()
+```
+
+
+
+
+```{r}
+logreg_lasso <- logistic_reg(penalty = 39, mixture = 1) %>%
+  set_engine('glmnet')
+
+# Create the workflow with the logistic regression model and recipe
+logreg_lasso_workflow <- workflow() %>%
+  add_model(logreg_lasso) %>%
+  add_recipe(stroke_recipe)
+
+# Fit the workflow to the training data
+logreg_lasso_fit_workflow <- logreg_lasso_workflow %>%
+  fit(tb_train)
+
+# Check the fitted workflow
+logreg_lasso_fit_workflow
+```
+
+
+```{r}
+logreg_ridge <- logistic_reg(penalty = 1, mixture = 0) %>%
+  set_engine('glmnet')
+
+# Create the workflow with the logistic regression model and recipe
+logreg_ridge_workflow <- workflow() %>%
+  add_model(logreg_ridge) %>%
+  add_recipe(stroke_recipe)
+
+# Fit the workflow to the training data
+logreg_ridge_fit_workflow <- logreg_ridge_workflow %>%
+  fit(data = tb_train)
+
+# Print the fitted workflow to ensure the output is visible
+print(logreg_ridge_fit_workflow)
+```
+
+
+```{r}
+evaluate_model <- function(fit_workflow, validation_set) {
+  # Perform predictions on the validation set
+  val_predictions <- fit_workflow %>%
+    augment(new_data = validation_set)
+
+  # Display the first 300 predictions
+  print(head(val_predictions, 300))
+
+  # Calculate and print evaluation metrics
+  metrics_results <- yardstick::metrics(val_predictions, truth = stroke, estimate = .pred_class)
+  print(metrics_results)
+
+  # Generate and print confusion matrix
+  cm <- val_predictions %>%
+    conf_mat(truth = stroke, estimate = .pred_class)
+  print(cm)
+
+  # Calculate and print recall
+  recall_value <- yardstick::recall(val_predictions, truth = stroke, estimate = .pred_class, event_level = 'second')
+  print(recall_value)
+
+  # Plot the ROC curve
+  if (any(names(val_predictions) == ".pred_1")) {
+    roc_data <- roc_curve(val_predictions, truth = stroke, .pred_1, event_level = 'second')
+  } else if (any(names(val_predictions) == ".pred_0")) {
+    roc_data <- roc_curve(val_predictions, truth = stroke, .pred_0, event_level = 'second')
+  } else {
+    stop("Predicted probability column not found.")
+  }
+
+  roc_plot <- autoplot(roc_data)
+  print(roc_plot)
+}
+
+```
+
+
+
+```{r}
+evaluate_model(rf_fit_workflow, tb_val)
+```
+
+
+
+```{r}
+evaluate_model(logreg_lasso_fit_workflow, tb_val)
+
+```
+
+```{r}
+evaluate_model(logreg_ridge_fit_workflow, tb_val)
+
+```
+
+
+
+```{r}
+# Install and load required packagesinstall.packages("tidyverse")install.packages("infer")
+
+library(tidyverse)
+library(infer)
+null_hypothesis <- tb_train %>%  specify(response = avg_glucose_level, explanatory = stroke) %>%  hypothesize(null = "independence")
+null_distribution <- null_hypothesis %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "diff in means", order = c(0, 1))
+observed_stat <- data %>%  specify(response = avg_glucose_level, explanatory = stroke) %>%  calculate(stat = "diff in means", order = c(0, 1))
+null_distribution %>%  visualize() +  shade_p_value(obs_stat = observed_stat, direction = "two-sided")
+p_value <- null_distribution %>%  get_p_value(obs_stat = observed_stat, direction = "two-sided")
+
+p_value
+```
+
+
+
+```{r}
+observed_f_statistic <- tb_train %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  calculate(stat = "F")
+null_dist <- tb_train %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "F")
+```
+
+
+```{r}
+null_dist %>%  visualize() +   shade_p_value(observed_f_statistic, direction = "greater")
+```
+
+
+```{r}
+null_dist %>%  get_p_value(obs_stat = observed_f_statistic, direction = "greater")
+```
+
+
+```{r}
+tb_train %>%  group_by(work_type) %>% summarise(mean=mean(avg_glucose_level), sd=sd(avg_glucose_level),n=n())
+```
+
+
+
+```{r}
+tb_train_review <- tb_tri %>% filter(work_type != "Self-employed")
+```
+
+
+```{r}
+observed_f_statistic <- tb_train_review %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  calculate(stat = "F")
+null_dist <- tb_train_review %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "F")
+```
+
+
+```{r}
+null_dist %>%  visualize() +   shade_p_value(observed_f_statistic, direction = "greater")
+```
+
+```{r}
+null_dist %>%  get_p_value(obs_stat = observed_f_statistic, direction = "greater")
+```
+
+
+```{r}
+age_stroke <- tb_train %>% filter(stroke == 1) %>% select(age)
+
+mean_age_stroke <- mean(age_stroke[["age"]])
+
+```
+
+```{r}
+
+booStrap_age <- tb_train %>%    specify(response=age) %>%  generate(reps = 1000, type="bootstrap") %>%   calculate(stat="mean")
+
+CI_age <- booStrap_age %>%   get_confidence_interval(point_estimate = mean_age_stroke, level = .95, type='percentile')
+
+CI_age
+```
+
+```{r}
+booStrap_age %>% visualize() + shade_confidence_interval(endpoints = CI_age)+  geom_vline(xintercept = mean_age_stroke, linetype = "dashed")
+```
