@@ -13,7 +13,7 @@ library(ggplot2)
 library(tidyverse)
 library(glue)
 
-dati <- read.csv("./healthcare-dataset-stroke-data.csv")
+dati <- read.csv("./data_challenge/healthcare-dataset-stroke-data.csv")
 ```
 ```{r}
 print("Prime righe del dataset:")
@@ -114,6 +114,16 @@ ggplot(dati_puliti, aes(x = age, y = avg_glucose_level)) +
   theme_minimal()
 ```
 ```{r}
+# Creazione del grafico a torta per 'work_type'
+work_counts <- dati %>%
+  group_by(work_type) %>%
+  summarise(count = n())
+
+ggplot(work_counts, aes(x = "", y = count, fill = work_type)) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  labs(title = "Distribution of Work Type", fill = "Work Type")
 
 ```
 

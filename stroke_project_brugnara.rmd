@@ -113,7 +113,7 @@ df <- select(df, -1) # removing the id
 
 
 ```{r}
-df$stroke <- as.factor(df$stroke)
+
 
 
 library(caret)
@@ -181,11 +181,14 @@ yardstick::recall(logreg_trainPred, truth=stroke,estimate=.pred_class,event_leve
 ```
 
 ```{r}
+yardstick::recall(logreg_trainPred, truth=stroke,estimate=.pred_class,event_level='second')
 roc_curve(logreg_trainPred, stroke,.pred_1,event_level = 'second') %>% autoplot()
 ```
 RF
 
 ```{r}
+yardstick::recall(logreg_trainPred, truth=stroke,estimate=.pred_class,event_level='second')
+roc_curve(logreg_trainPred, stroke,.pred_1,event_level = 'second') %>% autoplot()
 rand_forest_spec <- rand_forest(mtry = 3) %>%  
   set_engine('randomForest') %>% 
   set_mode('classification')
@@ -230,11 +233,11 @@ roc_curve(rf_trainPred, stroke,.pred_1,event_level = 'second') %>% autoplot()
 
 
 ```{r}
-threshold <- 0.2
-pred_class <- ifelse(rf_trainPred$.pred_1 > threshold, 1, 0)
+    threshold <- 0.2
+    pred_class <- ifelse(rf_trainPred$.pred_1 > threshold, 1, 0)
 
 
-rf_trainPred$.pred_class <- as.factor(as.numeric(pred_class))
+    rf_trainPred$.pred_class <- as.factor(as.numeric(pred_class))
 ```
 
 ```{r}
