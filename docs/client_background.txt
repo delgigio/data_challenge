@@ -9,28 +9,27 @@ Therefore we decided to come to you with a series of questions and possible anal
 
 MODELS
 - Is it possible to (circa) predict these strokes with ML / statistical methods? (Binary classification) 
-Even if the answer is yes, are very complex methods needed or can it be done with something more explainable?
+Even if the answer is yes, are very complex methods needed or can it be done with something more explainable? /
 
-- Can we potentially reduce the dimensionality of our data for our predictions? (LDA/QDA)
+- Can we potentially reduce the dimensionality of our data for our predictions? (LDA/QDA) *
  
-- Could we classify patients into groups of risk? (Multi-class classification; Issue: Hand-crafted groups, we aren't experts!!)
+- Could we classify patients into groups of risk? (Multi-class classification; Issue: Hand-crafted groups, we aren't experts!!) **ASK CLUSTERING
 
-- Can we predict <numeric value> based on x features? (Regression) 
+- Can we predict <numeric value> based on x features? (Regression) /
 (Try various models, LR, Lasso/Ridge..., various features compare using plots)
 
 
 
 HYPOTHESIS TESTING & ANOVA
 
-- (If we notice that one between age, bmi, glucose is relevant to strokes) Is there a significant difference in the average <value> between patients who have had a stroke and those who haven’t?
+- (If we notice that one between age, bmi, glucose is relevant to strokes) Is there a significant difference in the average <value> between patients who have had a stroke and those who haven’t? ***
 
-- Does the average BMI differ significantly between different work types or residence types?
+- Does the average BMI differ significantly between different work types or residence types? /
 
-- Check if the general population mean glucose is similar to ours, so that we see if our data is a good sample.
+- Check if the general population mean glucose is similar to ours, so that we see if our data is a good sample. * DO easy
 
 
 CONFIDENCE INTERVALS
 
-- Is there a specific range of age doctors should be more careful about when dealing with strokes?
-
+- Is there a specific range of age doctors should be more careful about when dealing with strokes? /
 

@@ -56,9 +56,12 @@ The only column that contains NaN values is 'bmi' and we can notice that we don'
 For now we eliminate the rows with missing bmi.
 
 ```{r}
-dati_puliti <- dati[!apply(dati == "N/A", 1, any), ]
+data <- data[!apply(data == "N/A", 1, any), ]
 
-# doesn't work
+
+sapply(data, function(x) sum(x == "N/A"))
+
+data$bmi <- as.numeric(data$bmi)
 ```
 
 Before starting to visualize and analyze we should divide the dataset into train + validation and test sets.
@@ -86,8 +89,10 @@ We can start doing some data exploration.
 ```{r}
 print(summary(select(tb_train, where(is.numeric))))
 ```
+
+
 ```{r}
-numeric_columns <- c('age','avg_glucose_level') # ,'bmi')
+numeric_columns <- c('age','avg_glucose_level', 'bmi')
 
 for (col in numeric_columns) {
   p <- ggplot(tb_train, aes(x = !!sym(col))) +

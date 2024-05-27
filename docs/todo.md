@@ -2,7 +2,7 @@
 
 ## Transform
 
-* [ ]  split
+* [X]  split
 * [X]  handle NaN values
 * [X]  encode (probably)
 

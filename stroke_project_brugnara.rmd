@@ -156,7 +156,7 @@ logreg_fit_workflow %>% extract_fit_engine() %>% summary()
 
 ```{r}
 logreg_trainPred <- logreg_fit_workflow %>% augment(df_train)
-logreg_trainPred %>% head(1)
+logreg_trainPred %>% head(2)
 ```
 
 ```{r}
@@ -197,7 +197,7 @@ install.packages('randomForest')
 
 rf <- rand_forest(mtry = 3) %>%  
   set_engine('randomForest') %>% 
-  set_mode('classification')
+  set_mode('classification') 
 
 
  rf_workflow <- workflow() %>% add_model(rf) %>% add_recipe(stroke_recipe)
@@ -245,9 +245,105 @@ print(rf_cm)
 
 yardstick::recall(rf_trainPred, truth=stroke,estimate=.pred_class,event_level='second')
 ```
+```{r}
+class(tb_train$stroke)
+```
+
+
+```{r}
+logreg_lasso <- logistic_reg(penalty = tune(), mixture = 1) %>% set_engine('glmnet')
+
+
+ logreg_lasso_workflow <- workflow() %>% add_model(logreg_lasso) %>% add_recipe(stroke_recipe)
+ 
+logreg_lasso__fit_workflow <- logreg_lasso_workflow %>% fit(tb_train)  
+
+logreg_lasso_fit_workflow
+```
+
+```{r}
+logreg_ridge <- logistic_reg(penalty = tune(), mixture = 2) %>% set_engine('glmnet')
+
+
+ logreg_ridge_workflow <- workflow() %>% add_model(logreg_ridge) %>% add_recipe(stroke_recipe)
+ 
+logreg_ridge__fit_workflow <- logreg_ridge_workflow %>% fit(tb_train)  
+
+logreg_ridge_fit_workflow
+```
+
+
+```{r}
+base_recipe_reg <- recipe(bmi ~ ., data = tb_train)
+
+linreg <-  linear_reg() %>% set_engine("lm")
+
+ bmi_recipe <- base_recipe_reg %>% step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors())
+ 
+ linreg_workflow <- workflow() %>% add_model(linreg) %>% add_recipe(bmi_recipe)
+ 
+linreg_fit_workflow <- linreg_workflow %>% fit(tb_train)
+
+linreg_fit_workflow
+```
 
 
 
+```{r}
+
+linreg_lasso <-  linear_reg(penalty = tune(), mixture = 1) %>% set_engine("glmnet")
+
+ linreg_lasso_workflow <- workflow() %>% add_model(linreg_lasso) %>% add_recipe(bmi_recipe)
+ 
+linreg_lasso_fit_workflow <- linreg_lasso_workflow %>% fit(tb_train)
+
+linreg_lasso_fit_workflow
+```
+
+```{r}
+lambdas <- linreg_lasso_fit_workflow %>% 
+  extract_fit_engine() %>% .$lambda
+
+lasso.pred <- linreg_lasso_fit_workflow %>% 
+  predict(tb_val, penalty=lambdas[60])
+
+lasso.pred
+```
+
+
+
+```{r}
+
+linreg_ridge <-  linear_reg(penalty = tune(), mixture = 1) %>% set_engine("glmnet")
+
+ 
+ linreg_ridge_workflow <- workflow() %>% add_model(linreg_ridge) %>% add_recipe(bmi_recipe)
+ 
+linreg_ridge_fit_workflow <- linreg_ridge_workflow %>% fit(tb_train)
+
+linreg_ridge_fit_workflow
+```
+
+
+
+
+```{r}
+# Hypothesis testing
+# mu(stroke) = mu(no stroke) of bmi, glucose, age ? 
+
+
+age_stroke <- tb_train %>% filter(stroke==1) %>% select(age)
+
+age_stroke_mean <- mean(age_stroke[['age']])
+
+
+age_no_stroke <- tb_train %>% filter(stroke==0) %>% select(age)
+
+age_no_stroke_mean <- mean(age_no_stroke[['age']])
+
+age_no_stroke_mean
+```
 
 
 
