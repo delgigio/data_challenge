@@ -15,33 +15,28 @@ Therefore we decided to come to you with a series of questions and possible anal
 ## Preparing the data
 After loading the dataset using readr, the first step is to check whether it's tidy.
 
-```{r, message = FALSE, warning = FALSE}
+```{r}
 # loading useful libraries
 
-suppressWarnings( suppressPackageStartupMessages({
-install.packages('themis', quiet = TRUE)
-install.packages('randomForest', quiet = TRUE)
-install.packages("infer", quiet = TRUE)
-install.packages('performance', quiet = TRUE)
-install.packages('corrr', quiet = TRUE)  
-  
+
 library(rlang)  #  pass string feature names to functions
+install.packages('themis')
+install.packages('randomForest')
+install.packages("infer")
 library(infer)
 library(themis)
+install.packages('performance')
 library(performance) # check if models are valid
 library(tidyverse)
 library(glue)  # f-strings
 library(tidymodels)
 library(caret)  # stratified split
+
+install.packages('corrr')
 library(corrr)   # corr matrix
-}))
-
-
-set.seed(999)
 ```
 
 ```{r}
-
 data <- read_csv("./healthcare-dataset-stroke-data.csv", show_col_types =FALSE)
 dim(data); colnames(data)
 ```
@@ -321,7 +316,7 @@ The smaller the Pr(>|z|) column (p-value) is, the most significant the feature, 
 
 We can see that age is the most significant feature, indeed it has a statistic value of 8.899, and since we applied normalization we can also use this column to analyze the importance. We expected this result both from common sense and from our visualizations.
 
-We also mentioned before that bmi was probably not going to be very relevant and it is indeed one of the least significant features, ###along with being female (we said th at being male might positively influence the target, not the opposite) and### having never worked (work type is in general not very significant, although being self employed has the lowest p-value among them, potentially due to high stress).
+We also mentioned before that bmi was probably not going to be very relevant and it is indeed one of the three least significant features, along with being female (we said th at being male might positively influence the target, not the opposite) and having never worked (work type is in general not very significant, although being self employed has the lowest p-value among them, potentially due to high stress).
 
 
 We evaluate the model on our validation set by augmenting it with the predictions and their probabilities.
@@ -371,47 +366,8 @@ roc_curve(prediction_dataset, {{ target }},.pred_1,event_level = 'second') %>% a
 ```
 
 ```{r}
-plot_pr_curve <- function(prediction_dataset, target) {
-auc <- yardstick::pr_auc(prediction_dataset, {{ target }},.pred_1,event_level = 'second')$.estimate
-
-pr_curve(prediction_dataset, {{ target }},.pred_1,event_level = 'second') %>% autoplot() +   geom_label(aes(x = 0.75, y = 0.25, label = paste("PR AUC:", round(auc, 5))), size = 4, label.size = 0.5)
-}
-```
-
-```{r}
-evaluate_model <- function(fit_workflow, validation_set) {
-  val_predictions <- fit_workflow %>%
-    augment(new_data = validation_set)
-
-  print(head(val_predictions, 1))
-
-  cm <- val_predictions %>%
-    conf_mat(truth = stroke, estimate = .pred_class)
-  print(cm)
-
-  recall_value <- yardstick::recall(val_predictions, truth = stroke, estimate = .pred_class, event_level = 'second')
-  print(recall_value)
-
-  plot_roc_curve(val_predictions, 'stroke')
-}
-
-```
-
-```{r}
 plot_roc_curve(logreg_valPred, 'stroke')
 ```
-
-```{r}
-plot_pr_curve(logreg_valPred, 'stroke')
-```
-
-
-```{r}
-logreg_fit_workflow %>% 
-  extract_fit_engine() %>%  
-  check_model()
-```
-
 
 We obtain a decent AUROC, and we could decide to extract a threshold from the curve, but we'll try more models to see different perspectives.
 
@@ -453,19 +409,17 @@ rf_cm
 
 yardstick::recall(rf_valPred, truth=stroke,estimate=.pred_class,event_level='second')
 ```
-
 ```{r}
 plot_roc_curve(rf_valPred, 'stroke')
 ```
 
 We obtain a bad performance here too. If a powerful model can't really learn to distinguish the classes it's a sign that we need to address the imbalance.  Our AUROC are also very similar.
 
-Typical techniques to do so include oversampling of the least-common class, SMOTE or our choice, undersampling of the most-common class. This means sampling N (or close to it) patients that didn't experience a stroke, where N is the numbers of those who did. Although we loose a lot of information, we are not introducing dummy observations. 
-To perform this we can simply modify our recipe by adding step_downsample. Here we could choose the ratio between the undersample class and the least-represented class. We tried many values: ratios higher than 1 would perform quite bad, meaning that the model would have a hard time predicting True even when that class wasn't much smaller than the other. On the other hand, using a ration of 1 or slighly less resulted in the best models. 
+Typical techniques to do so include oversampling of the least-common class, SMOTE or our choice, undersampling of the most-common class. This means sampling N (or close to it) patients that didn't experience a stroke, where N is the numbers of those who did. Although we loose a lot of information, we are not introducing dummy observations.
 
 
 ```{r}
-us_stroke_recipe <- stroke_recipe %>% step_downsample(stroke, under_ratio = 0.6)
+us_stroke_recipe <- stroke_recipe %>% step_downsample(stroke)
 ```
 
 
@@ -483,63 +437,39 @@ us_logreg_fit_workflow
 us_logreg_valPred <- us_logreg_fit_workflow %>% augment(tb_val)
 us_logreg_valPred %>% head(1)
 ```
-
-
 ```{r}
 us_logreg_cm <- us_logreg_valPred %>%
   conf_mat(truth=stroke,estimate=.pred_class)
 
 us_logreg_cm
 ```
+```{r}
+#us_logreg_trainPred <- us_logreg_fit_workflow %>% augment(tb_train)
+
+
+#us_logreg_train_cm <- us_logreg_trainPred %>%
+ # conf_mat(truth=stroke,estimate=.pred_class)
+
+#us_logreg_train_cm
+```
+
 
 ```{r}
 yardstick::recall(us_logreg_valPred, truth=stroke,estimate=.pred_class,event_level='second')
 ```
+Our new classifier has a much lower accuracy, but a infinitely higher recall. This is what we wanted, we now check the AUROC of the model.
+
 ```{r}
 plot_roc_curve(us_logreg_valPred, 'stroke')
 ```
-
-
-We obtain a good recall of over 0.8 and an AUROC comparable to before. The undersampling was definitely needed as this is a way better model than the previous one. However we now have many false positives. We now check the PR curve to see if there are thresholds that result in a more balanced confusion matrix.
-
-
-```{r}
-levels(us_logreg_valPred$stroke)
-```
-
-
-```{r}
-plot_pr_curve(us_logreg_valPred, 'stroke')
-```
-
-
-
-
-Let's now check the performance of the model on the train set.
-
-```{r}
-us_logreg_trainPred <- us_logreg_fit_workflow %>% augment(tb_train)
-
-us_logreg_train_cm <- us_logreg_trainPred %>% conf_mat(truth=stroke,estimate=.pred_class)
-
-us_logreg_train_cm
-```
-
-
-```{r}
-yardstick::recall(us_logreg_trainPred, truth=stroke,estimate=.pred_class,event_level='second')
-```
-We have similar or even worse performance on the train set, our model is not overfitting, thus we don't need to regularize it. We will not try LASSO or Ridge regression.
-
-
-Let's now check how the random forest performs with the undersampled data.
-
 ```{r}
 us_rf_workflow <- workflow() %>% add_model(rf) %>% add_recipe(us_stroke_recipe)
 
 
 us_rf_fit_workflow <- us_rf_workflow %>% fit(tb_train)
 ```
+
+
 
 
 ```{r}
@@ -558,118 +488,10 @@ print(us_rf_cm)
 yardstick::recall(us_rf_valPred, truth=stroke,estimate=.pred_class,event_level='second')
 ```
 
+
 ```{r}
 plot_roc_curve(us_rf_valPred, 'stroke')
 ```
-
-The recall estimates of the logistic regression and random forest models are almost equivalent and the ROC curve is worse. We will coose the first model. Since we care a lot about explainability, we won't consider the random forest unless it shows clear advantages over the competitor, which isn't the case. 
-
-
-```{r}
-us_logreg_fit_workflow %>% 
-  extract_fit_engine() %>%  
-  check_model()
-```
-
-
-```{r}
-train_withResid <- us_logreg_fit_workflow %>%
-  extract_fit_engine() %>%
-  augment()
-
-train_withResid %>% 
-  ggplot()+ 
-  geom_point(aes(
-    x=bmi,
-    y=.resid))
-
-# for each feature
-
-```
-
-
-Now that we chose a model, we can evaluate on the test set, which was completely untouched until now.
-
-```{r}
-us_logreg_testPred <- us_logreg_fit_workflow %>% augment(tb_test)
-us_logreg_testPred %>% head(1)
-```
-
-```{r}
-us_logreg_cm_test <- us_logreg_testPred %>%
-  conf_mat(truth=stroke,estimate=.pred_class)
-
-print(us_logreg_cm_test)
-
-yardstick::recall(us_logreg_testPred, truth=stroke,estimate=.pred_class,event_level='second')
-```
-We obtain a recall close to 0.8 on the test set. It's a pretty good result considering we are using a very simple and explainable model.
-
-
-```{r}
-predicted_probs  <- us_logreg_trainPred$.pred_1
-
-risk_groups <- cut(predicted_probs,
-                   breaks = c(-Inf, 0.1, 0.5, Inf),
-                   labels = c("low", "medium", "high"),
-                   include.lowest = TRUE)
-
-tb_train_groups <- tb_train %>% select(-stroke)
-
-tb_train_groups$groups <- risk_groups
-tb_train_groups %>% head(1)
-```
-
-```{r}
-tb_train_high <- tb_train_groups %>% mutate(high=ifelse(groups == 'high',1,0))
-
-tb_train_high <- tb_train_high %>% select(-groups)
-
-tb_train_high
-```
-
-```{r}
-tb_train_medium <- tb_train_groups %>% mutate(medium=ifelse(groups == 'medium',1,0))
-
-tb_train_medium <- tb_train_medium %>% select(-groups)
-
-tb_train_medium
-```
-
-```{r}
-tb_train_low <- tb_train_groups %>% mutate(low=ifelse(groups == 'low',1,0))
-
-tb_train_low <- tb_train_low %>% select(-groups)
-
-tb_train_low
-```
-
-```{r}
-base_recipe <- recipe(stroke ~ ., data = tb_train)
-
- stroke_recipe <- base_recipe %>% step_normalize(all_numeric_predictors()) %>%
-  step_dummy(all_nominal_predictors())
-```
-
-
-
-```{r}
-
-logreg <- logistic_reg() %>% set_engine('glm')
-
-logreg_workflow <- workflow() %>% add_model(logreg) %>% add_recipe(stroke_recipe)
-
-```
-
-
-
-```{r}
-logreg_fit_workflow <- logreg_workflow %>% fit(tb_train)
-
-logreg_fit_workflow
-
-```
-
 
 ##################
 
@@ -713,7 +535,62 @@ logreg_ridge_fit_workflow <- logreg_ridge_workflow %>%
 print(logreg_ridge_fit_workflow)
 ```
 
-##############
+
+```{r}
+evaluate_model <- function(fit_workflow, validation_set) {
+  # Perform predictions on the validation set
+  val_predictions <- fit_workflow %>%
+    augment(new_data = validation_set)
+
+  # Display the first 300 predictions
+  print(head(val_predictions, 300))
+
+  # Calculate and print evaluation metrics
+  metrics_results <- yardstick::metrics(val_predictions, truth = stroke, estimate = .pred_class)
+  print(metrics_results)
+
+  # Generate and print confusion matrix
+  cm <- val_predictions %>%
+    conf_mat(truth = stroke, estimate = .pred_class)
+  print(cm)
+
+  # Calculate and print recall
+  recall_value <- yardstick::recall(val_predictions, truth = stroke, estimate = .pred_class, event_level = 'second')
+  print(recall_value)
+
+  # Plot the ROC curve
+  if (any(names(val_predictions) == ".pred_1")) {
+    roc_data <- roc_curve(val_predictions, truth = stroke, .pred_1, event_level = 'second')
+  } else if (any(names(val_predictions) == ".pred_0")) {
+    roc_data <- roc_curve(val_predictions, truth = stroke, .pred_0, event_level = 'second')
+  } else {
+    stop("Predicted probability column not found.")
+  }
+
+  roc_plot <- autoplot(roc_data)
+  print(roc_plot)
+}
+
+```
+
+
+
+```{r}
+evaluate_model(rf_fit_workflow, tb_val)
+```
+
+
+
+```{r}
+evaluate_model(logreg_lasso_fit_workflow, tb_val)
+
+```
+
+```{r}
+evaluate_model(logreg_ridge_fit_workflow, tb_val)
+
+```
+
 
 ### *) Regression on Age
 During our previous analysis we found out that 'age' is the most important feature to predict 'stroke'. Not only that, we found that it was by far the most significant one.
@@ -758,7 +635,7 @@ linreg_valPred <- linreg_fit_workflow %>% augment(tb_val_no_stroke)
 
 bind_rows(yardstick::rsq(linreg_valPred, truth=age,estimate=.pred), yardstick::rmse(linreg_valPred, truth=age,estimate=.pred))
 ```
-We can see that the R^2 of the model is pretty consistent both on the train and validation set, around 0.65, meaning that the features explain around 66% of the age variable. This confirms our ideas: while of course the features alone aren't able to perfectly predict the age, there is definitely correlation among them.
+We can see that the R^2 of the model is pretty consistent both on the train and validation set, around 0.66, meaning that the features explain around 66% of the age variable. This confirms our ideas: while of course the features alone aren't able to perfectly predict the age, there is definitely correlation among them.
 
 To consider this a valid analysis we first need to be sure that that we are using a valid model.
 
@@ -803,9 +680,9 @@ H0 :  μS =  μNS
 H1 :  μS != μNS
 
 ```{r}
-mean_bmi <- data %>% 
+mean_bmi <- tb_train %>% 
   summarize(mean(bmi)) %>% pull(); 
-sd_bmi <- data %>% 
+sd_bmi <- tb_train %>% 
   summarize(sd(bmi)) %>% pull()
 
 
@@ -814,7 +691,7 @@ simulatedGauss <-
                         mean=mean_bmi,
                         sd = sd_bmi))
 
-combined_bmi <- bind_rows(data %>% select(bmi) %>% mutate(source='real'), simulatedGauss %>% mutate(source='simulation'))
+combined_bmi <- bind_rows(tb_train %>% select(bmi) %>% mutate(source='real'), simulatedGauss %>% mutate(source='simulation'))
 
 
 ggplot(combined_bmi, aes(x = bmi, color = source)) +
@@ -829,9 +706,9 @@ The plot is useful to check the normality of our data. Although we already saw t
 
 
 ```{r}
-bmi_stroke <- data %>% filter(stroke==1) %>% select(bmi)
+bmi_stroke <- tb_train %>% filter(stroke==1) %>% select(bmi)
 
-bmi_safe <- data %>% filter(stroke==0) %>% select(bmi)
+bmi_safe <- tb_train %>% filter(stroke==0) %>% select(bmi)
 
 print(glue("Mean BMI of people who didn't have a stroke: {mean(bmi_stroke$bmi)}"))
 
@@ -842,21 +719,21 @@ print(glue("Mean BMI of people who had a stroke: {mean(bmi_safe$bmi)}"))
 ```{r}
 t.test(bmi_stroke$bmi, bmi_safe$bmi)
 ```
-The p-value is smaller than 0.05 (significance), meaning that we can reject H0 with 95% confidence and state that the difference between two means is statistically significant, even if the means themselves seem relatively close. The estimated difference range from 0.309 to 2.657. 
+The p-value is smaller than 0.05 (significance), meaning that we can reject H0 and state that the difference between two means is statistically significant, even if the means themselves seem relatively close. The estimated difference range from 0.309 to 2.657. 
 
 
 To confirm this result we can use a different approach, here we'll use a permutation test.
 
 
 ```{r}
-null_hypothesis <- data %>%  specify(response = bmi, explanatory = stroke) %>%  hypothesize(null = "independence")
+null_hypothesis <- tb_train %>%  specify(response = bmi, explanatory = stroke) %>%  hypothesize(null = "independence")
 
 null_distribution <- null_hypothesis %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "diff in means", order = c(0, 1))
 
 ```
 
 ```{r}
-observed_stat <- data %>%  specify(response = bmi, explanatory = stroke) %>%  calculate(stat = "diff in means", order = c(0, 1))
+observed_stat <- tb_train %>%  specify(response = bmi, explanatory = stroke) %>%  calculate(stat = "diff in means", order = c(0, 1))
 
 null_distribution %>%  visualize() +  shade_p_value(obs_stat = observed_stat, direction = "two-sided")
 
@@ -864,17 +741,14 @@ p_value <- null_distribution %>%  get_p_value(obs_stat = observed_stat, directio
 
 p_value
 ```
-We again obtain a p-value way smaller than the significance, we can say with high confidence that the mean BMI between people who had and didn't have a stroke is different.
-
 
 ### *) ANOVA: BMI between work types
 
 ```{r}
-data %>%  group_by(work_type) %>% summarise(mean=mean(avg_glucose_level), sd=sd(avg_glucose_level),n=n())
+tb_train %>%  group_by(work_type) %>% summarise(mean=mean(avg_glucose_level), sd=sd(avg_glucose_level),n=n())
 ```
-
 ```{r}
-data %>% ggplot()+geom_boxplot(aes(x=work_type, y=bmi))
+tb_train %>% ggplot()+geom_boxplot(aes(x=work_type, y=bmi))
 ```
 
 Three classes (Govt_job, Private and Self-employed) seem to have very similar distributions, with very similar means and standard deviations. The children group is instead isolated from the other with smaller parameters.
@@ -885,9 +759,9 @@ H0 : all means are equal.
 H1 : at least one mean is different.
 
 ```{r}
-observed_f_statistic <- data %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  calculate(stat = "F")
+observed_f_statistic <- tb_train %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  calculate(stat = "F")
 
-null_dist <- data %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "F")
+null_dist <- tb_train %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "F")
 ```
 
 
@@ -899,40 +773,17 @@ null_dist %>%  visualize() +   shade_p_value(observed_f_statistic, direction = "
 ```{r}
 null_dist %>%  get_p_value(obs_stat = observed_f_statistic, direction = "greater")
 ```
-We can reject H0 with extremely high confidence, indeed the p-value is approximated at 0, meaning it's basically guaranteed that at least one group is different from the others. 
-Now we can try to find the different group(s) and repeat the test. 
-After seeing the means and variances of the categories, the first suspect is the children group, it's the one with the smallest statistics and is really close only to the Never-worked category. Logically these two seem related, the latter could potentially be formed by young individuals who can't be considered children anymore but also have never worked.
+We can reject H0 with extremely high confidence. 
+Now we can try to find the different group(s) and repeat the test.
 
 ```{r}
-data_no_children <- data %>% filter(work_type != "children")
+tb_train_review <- tb_train %>% filter(work_type != "children")
 ```
 
 
 ```{r}
-observed_f_statistic <- data_no_children %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  calculate(stat = "F")
-null_dist <- data_no_children %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "F")
-```
-
-
-```{r}
-null_dist %>%  visualize() +   shade_p_value(observed_f_statistic, direction = "greater")
-```
-
-```{r}
-null_dist %>%  get_p_value(obs_stat = observed_f_statistic, direction = "greater")
-```
-Indeed now the p-value has become bigger. The children category is the one significantly different from the others, it intuitively makes sense, children have often lower BMI values due to several reasons like higher metabolic rate (they burn more calories) and higher growth rate (muscles and bone density rapidly increase, possibly more than weight), and hormones effects.
-
-However our statistics lies again in the rejection region, we the repeat the experiment one last time, now also removing the Never_worked category.
-
-```{r}
-data_adults <- data %>% filter(work_type != "Never_worked" & work_type != "children")
-```
-
-
-```{r}
-observed_f_statistic <- data_adults %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  calculate(stat = "F")
-null_dist <- data_adults %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "F")
+observed_f_statistic <- tb_train_review %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  calculate(stat = "F")
+null_dist <- tb_train_review %>%  specify(bmi~work_type) %>%  hypothesize(null = "independence") %>%  generate(reps = 1000, type = "permute") %>%  calculate(stat = "F")
 ```
 
 
@@ -943,32 +794,30 @@ null_dist %>%  visualize() +   shade_p_value(observed_f_statistic, direction = "
 ```{r}
 null_dist %>%  get_p_value(obs_stat = observed_f_statistic, direction = "greater")
 ```
-Now the p-value is very big, far away from the rejection region.
-The results make sense with what we noticed when we only saw the means and variances of the groups, the two groups we removed were similar between them but quite different from the others.
-
-These results could also be interpreted as two different clusters representing young people/children and working adults. 
-
+Indeed now the p-value is quite big. The children category is the one significantly different from the other, it intuitively makes sense, children have often lower BMI values due to several reasons like higher metabolic rate (they burn more calories) and higher growth rate (muscles and bone density rapidly increase, possibly more than weight), and hormones effects.
 
 ### *) Age range at most risk
 
 
-```{r}
-data_stroke <- data %>% filter(stroke == 1)
 
-mean_age_no_stroke <- (data %>% filter(stroke == 0) %>% select(age))$age %>% mean()
-mean_age_no_stroke
+
+
+```{r}
+age_stroke <- tb_train %>% filter(stroke == 1) %>% select(age)
+
+mean_age_stroke <- mean(age_stroke[["age"]])
+
 ```
 
 ```{r}
-booStrap_age <- data_stroke %>% specify(response=age) %>%  generate(reps = 1000, type="bootstrap") %>%   calculate(stat="mean")
 
-CI_age <- booStrap_age %>%   get_confidence_interval(point_estimate = mean_age_no_stroke, level = .95, type='percentile')
+booStrap_age <- tb_train %>%    specify(response=age) %>%  generate(reps = 1000, type="bootstrap") %>%   calculate(stat="mean")
+
+CI_age <- booStrap_age %>%   get_confidence_interval(point_estimate = mean_age_stroke, level = .95, type='percentile')
 
 CI_age
 ```
 
 ```{r}
-booStrap_age %>% visualize() + shade_confidence_interval(endpoints = CI_age) +  geom_vline(xintercept = mean_age_no_stroke, linetype = "dashed")
+booStrap_age %>% visualize() + shade_confidence_interval(endpoints = CI_age)+  geom_vline(xintercept = mean_age_stroke, linetype = "dashed")
 ```
-
-
