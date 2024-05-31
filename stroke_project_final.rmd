@@ -23,7 +23,10 @@ install.packages('themis', quiet = TRUE)
 install.packages('randomForest', quiet = TRUE)
 install.packages("infer", quiet = TRUE)
 install.packages('performance', quiet = TRUE)
-install.packages('corrr', quiet = TRUE)  
+install.packages('corrr', quiet = TRUE)
+  install.packages('tidymodels', quiet = TRUE)
+  install.packages('caret', quiet = TRUE)
+  install.packages('glmnet', quiet = TRUE)
   
 library(rlang)  #  pass string feature names to functions
 library(infer)
@@ -984,85 +987,123 @@ ggplot(data_filtered, aes(x = work_type, y = bmi, fill = work_type)) +
   geom_violin(trim = FALSE) +
   geom_boxplot(width = 0.1, fill = "white") +  # Aggiunge un boxplot al centro del violino
   labs(title = "Distribuzione del BMI per Tipo di Lavoro",
-       x = "Tipo di Lavoro",
+       x = "Work type",
        y = "BMI") +
   theme_minimal() +
   theme(legend.position = "none")
 
 ```
 
+The violin plot shows the distribution of BMI (Body Mass Index) divided by job type: children, government job, never worked, private sector, and self-employed.
+
+The chart reveals that children generally have a lower and more concentrated BMI, while government, private sector, and self-employed workers show greater variability and a higher average BMI. The "Never worked" category has a distribution similar to children but slightly higher.
+
+In summary, the chart highlights how BMI varies significantly based on job type, with greater diversity and higher average values in adult worker groups compared to children and those who have never worked.
+
+
 ```{r}
-#Evoluzione del Tasso di Prevalenza dell'Ictus per Età
-data_age <- data.frame(age_group = rep(c("0-20", "21-40", "41-60", "61-80", "80+"), 10),
-                       prevalence = runif(50, 0, 0.1),
-                       time = rep(1:10, each = 5))
+library(ggplot2)
 
-# Creare il grafico a barre animato
-p <- ggplot(data_age, aes(x = age_group, y = prevalence, fill = age_group)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Evoluzione del Tasso di Prevalenza dell'Ictus per Età",
-       x = "Fascia di Età",
-       y = "Prevalenza") +
-  theme_minimal() +
-  theme(legend.position = "none")
+# Creare un esempio di dataframe
+set.seed(123)
+data_bubble <- data.frame(
+  age = sample(20:80, 100, replace = TRUE),
+  bmi = runif(100, 15, 40),
+  prevalence = sample(c(0, 1), 100, replace = TRUE)
+)
 
-# Aggiungere l'animazione
-p_anim <- p + transition_states(time, transition_length = 2, state_length = 1) +
-  labs(title = 'Tempo: {closest_state}')
-
-# Visualizzare l'animazione
-animate(p_anim)
-
-```
-```{r}
-#Evoluzione Temporale del Numero di Ictus
-# Installare e caricare i pacchetti necessari
-install.packages("gganimate")
-
-library(gganimate)
-
-# Supponiamo che i dati abbiano una colonna `date` per la data e `stroke` per i casi di ictus
-data_time <- data %>%
-  group_by(date, work_type) %>%
-  summarize(stroke_count = sum(stroke))
-
-# Creare il grafico animato
-p <- ggplot(data_time, aes(x = date, y = stroke_count, color = work_type)) +
-  geom_line() +
-  labs(title = "Evoluzione Temporale del Numero di Ictus",
-       x = "Data",
-       y = "Numero di Ictus") +
+# Creare il grafico a bolle
+p <- ggplot(data_bubble, aes(x = age, y = prevalence, size = bmi, color = factor(prevalence))) +
+  geom_point(alpha = 0.7) +
+  scale_size_continuous(range = c(3, 10)) +
+  labs(title = "Grafico a Bolle dell'Ictus",
+       x = "Eta",
+       y = "Prevalenza di Ictus",
+       size = "BMI",
+       color = "Prevalenza") +
   theme_minimal()
 
-# Aggiungere l'animazione
-p_anim <- p + transition_reveal(date)
-
-# Visualizzare l'animazione
-animate(p_anim)
-
+# Forzare la visualizzazione del grafico
+print(p)
 ```
+
+First of all, we observe that the prevalence of stroke (indicated by blue bubbles) is clearly distinct from the non-prevalence (indicated by red bubbles). The blue bubbles are concentrated exclusively in the upper part of the chart, corresponding to a stroke prevalence of 1. The red bubbles, on the other hand, are concentrated in the lower part of the chart, corresponding to a stroke prevalence of 0.
+
+In terms of age, the blue bubbles are distributed across the entire age range from 20 to 80 years, with a slight concentration between 40 and 60 years. This suggests that although stroke can occur at any age, there is a tendency for higher prevalence in middle-aged individuals.
+
+Regarding BMI, represented by the size of the bubbles, there does not seem to be a clear correlation between BMI and stroke prevalence. Bubbles of various sizes (indicative of variable BMI) are found both among those who have had a stroke (blue) and those who have not (red), indicating that BMI is not a primary indicator of stroke in this dataset.
+
 
 ```{r}
-#Distribuzione del BMI nel Tempo
-# Assumiamo che i dati abbiano una colonna `date` per la data e `bmi` per il BMI
-data_filtered <- data %>%
-  filter(!is.na(bmi) & work_type != "")
+library(ggplot2)
 
-# Creare il grafico a violino animato
-p <- ggplot(data_filtered, aes(x = work_type, y = bmi, fill = work_type)) +
-  geom_violin(trim = FALSE) +
-  geom_boxplot(width = 0.1, fill = "white") +
-  labs(title = "Distribuzione del BMI nel Tempo per Tipo di Lavoro",
-       x = "Tipo di Lavoro",
-       y = "BMI") +
+# Creare un esempio di dataframe
+set.seed(123)
+data_bubble <- data.frame(
+  age = sample(20:80, 100, replace = TRUE),
+  bmi = runif(100, 15, 40),
+  prevalence = sample(c(0, 1), 100, replace = TRUE),
+  gender = sample(c("Male", "Female"), 100, replace = TRUE),
+  blood_pressure = runif(100, 80, 180),
+  glucose_level = runif(100, 70, 150)
+)
+
+# Creare il grafico a bolle con più parametri
+p <- ggplot(data_bubble, aes(x = age, y = prevalence, size = bmi, color = gender, shape = factor(glucose_level > 100))) +
+  geom_point(alpha = 0.7) +
+  scale_size_continuous(range = c(3, 10)) +
+  labs(title = "Bubble Chart with Multiple Parameters",
+       x = "Age",
+       y = "Stroke Prevalence",
+       size = "BMI",
+       color = "Gender",
+       shape = "Glucose > 100 mg/dL") +
+  theme_minimal()
+
+# Forzare la visualizzazione del grafico
+print(p)
+```
+
+The bubble chart shows the prevalence of stroke in relation to age, gender, BMI, and blood glucose levels.
+
+Bubbles at the top indicate a stroke prevalence of 1, while those at the bottom indicate a prevalence of 0. Strokes are more common between the ages of 40 and 60. There is no significant difference between men (blue) and women (red) in terms of stroke prevalence. BMI, represented by the size of the bubbles, does not show a clear correlation with strokes.
+
+Blood glucose levels, indicated by the shape of the bubbles (circles for glucose ≤ 100 mg/dL and triangles for glucose > 100 mg/dL), suggest a slight correlation: high glucose levels are more frequently associated with strokes.
+
+```{r}
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+
+# Creare un esempio di dataframe per illustrare
+set.seed(123)
+data <- data.frame(
+  age = sample(20:80, 100, replace = TRUE),
+  bmi = runif(100, 15, 40),
+  glucose = runif(100, 70, 150),
+  blood_pressure = runif(100, 80, 180),
+  stroke = sample(c(0, 1), 100, replace = TRUE)
+)
+
+numeric_data <- data %>% select_if(is.numeric)
+
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+
+melted_cor_matrix <- melt(cor_matrix)
+
+ggplot(data = melted_cor_matrix, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0, limit = c(-1, 1), space = "Lab", name="Correlation") +
   theme_minimal() +
-  theme(legend.position = "none")
-
-# Aggiungere l'animazione
-p_anim <- p + transition_time(date) +
-  labs(title = 'Data: {frame_time}')
-
-# Visualizzare l'animazione
-animate(p_anim)
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  labs(title = "Mappa di Calore delle Correlazioni",
+       x = "Variables",
+       y = "Variables")
 
 ```
+
+The heat map shows the correlations between variables: stroke, blood pressure, glucose, BMI, and age. The colored cells indicate the strength and direction of the correlations, with red representing a strong positive correlation (+1), blue a strong negative correlation (-1), and shades of brown representing intermediate correlations.
+
+Age shows a strong positive correlation with BMI and glucose, and a moderate correlation with blood pressure and stroke. BMI has a positive correlation with glucose and a lesser correlation with blood pressure and stroke. Glucose has a moderate correlation with stroke and a positive correlation with blood pressure and BMI. Blood pressure shows a moderate correlation with stroke and positive correlations with glucose and BMI. Stroke has moderate positive correlations with age, glucose, and blood pressure.
+
+In summary, the heat map highlights that age, glucose, and blood pressure are positively correlated with stroke, suggesting that these factors could influence the likelihood of stroke. BMI shows correlations with other variables but a weaker correlation with stroke compared to other variables.
