@@ -42,7 +42,7 @@ set.seed(999)
 
 ```{r}
 
-data <- read_csv("./healthcare-dataset-stroke-data.csv", show_col_types =FALSE)
+data <- read_csv("./data_challenge/healthcare-dataset-stroke-data.csv", show_col_types =FALSE)
 dim(data); colnames(data)
 ```
 We have over 5100 patients and 12 columns, with 'stroke' being the binary target of the first question.
@@ -971,4 +971,98 @@ CI_age
 booStrap_age %>% visualize() + shade_confidence_interval(endpoints = CI_age) +  geom_vline(xintercept = mean_age_no_stroke, linetype = "dashed")
 ```
 
+```{r}
+#grafico a violino distribuzione BMI
+install.packages("dplyr")
+library(dplyr)
 
+data_filtered <- data %>%
+  filter(!is.na(bmi) & work_type != "")
+
+
+ggplot(data_filtered, aes(x = work_type, y = bmi, fill = work_type)) +
+  geom_violin(trim = FALSE) +
+  geom_boxplot(width = 0.1, fill = "white") +  # Aggiunge un boxplot al centro del violino
+  labs(title = "Distribuzione del BMI per Tipo di Lavoro",
+       x = "Tipo di Lavoro",
+       y = "BMI") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+```{r}
+#Evoluzione del Tasso di Prevalenza dell'Ictus per Età
+data_age <- data.frame(age_group = rep(c("0-20", "21-40", "41-60", "61-80", "80+"), 10),
+                       prevalence = runif(50, 0, 0.1),
+                       time = rep(1:10, each = 5))
+
+# Creare il grafico a barre animato
+p <- ggplot(data_age, aes(x = age_group, y = prevalence, fill = age_group)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Evoluzione del Tasso di Prevalenza dell'Ictus per Età",
+       x = "Fascia di Età",
+       y = "Prevalenza") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Aggiungere l'animazione
+p_anim <- p + transition_states(time, transition_length = 2, state_length = 1) +
+  labs(title = 'Tempo: {closest_state}')
+
+# Visualizzare l'animazione
+animate(p_anim)
+
+```
+```{r}
+#Evoluzione Temporale del Numero di Ictus
+# Installare e caricare i pacchetti necessari
+install.packages("gganimate")
+
+library(gganimate)
+
+# Supponiamo che i dati abbiano una colonna `date` per la data e `stroke` per i casi di ictus
+data_time <- data %>%
+  group_by(date, work_type) %>%
+  summarize(stroke_count = sum(stroke))
+
+# Creare il grafico animato
+p <- ggplot(data_time, aes(x = date, y = stroke_count, color = work_type)) +
+  geom_line() +
+  labs(title = "Evoluzione Temporale del Numero di Ictus",
+       x = "Data",
+       y = "Numero di Ictus") +
+  theme_minimal()
+
+# Aggiungere l'animazione
+p_anim <- p + transition_reveal(date)
+
+# Visualizzare l'animazione
+animate(p_anim)
+
+```
+
+```{r}
+#Distribuzione del BMI nel Tempo
+# Assumiamo che i dati abbiano una colonna `date` per la data e `bmi` per il BMI
+data_filtered <- data %>%
+  filter(!is.na(bmi) & work_type != "")
+
+# Creare il grafico a violino animato
+p <- ggplot(data_filtered, aes(x = work_type, y = bmi, fill = work_type)) +
+  geom_violin(trim = FALSE) +
+  geom_boxplot(width = 0.1, fill = "white") +
+  labs(title = "Distribuzione del BMI nel Tempo per Tipo di Lavoro",
+       x = "Tipo di Lavoro",
+       y = "BMI") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Aggiungere l'animazione
+p_anim <- p + transition_time(date) +
+  labs(title = 'Data: {frame_time}')
+
+# Visualizzare l'animazione
+animate(p_anim)
+
+```
